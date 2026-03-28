@@ -137,7 +137,7 @@ async def deploy_and_save_bot(message: types.Message, state: FSMContext, data: d
         return
 
     await msg.edit_text("🔧 Настраиваю окружение...")
-    await deploy_service.setup_venv(work_dir)
+    await deploy_service.setup_venv(work_dir, username)
 
     await msg.edit_text("⚙️ Создаю systemd сервис...")
     entrypoint = data.get("filename", "bot.py") if source_type == "file" else "bot.py"

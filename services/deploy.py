@@ -58,15 +58,15 @@ async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bo
         return False
 
 
-async def setup_venv(work_dir: str) -> bool:
+async def setup_venv(work_dir: str, username: str) -> bool:
     venv_path = os.path.join(work_dir, "venv")
-    code, _, _ = await _run("/usr/bin/sudo", "python3", "-m", "venv", venv_path)
+    code, _, _ = await _run("/usr/bin/sudo", "-u", username, "/usr/bin/python3", "-m", "venv", venv_path)
     if code != 0:
         return False
     req_path = os.path.join(work_dir, "requirements.txt")
     if os.path.exists(req_path):
         pip = os.path.join(venv_path, "bin", "pip")
-        code, _, _ = await _run("/usr/bin/sudo", pip, "install", "-r", req_path)
+        code, _, _ = await _run("/usr/bin/sudo", "-u", username, pip, "install", "-r", req_path)
         return code == 0
     return True
 
