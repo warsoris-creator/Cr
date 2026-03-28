@@ -19,7 +19,7 @@ async def cmd_status(message: types.Message):
         return
 
     for bot in bots:
-        status = await deploy.get_service_status(bot["id"])
+        status = await deploy.get_service_status_by_name(bot["systemd_unit"])
         db_status = "running" if status == "active" else "stopped" if status == "inactive" else "error"
         await db.update_bot_status(bot["id"], db_status)
 
@@ -38,7 +38,7 @@ async def back_to_status(callback: types.CallbackQuery):
     bots = await db.get_all_bots()
 
     for bot in bots:
-        status = await deploy.get_service_status(bot["id"])
+        status = await deploy.get_service_status_by_name(bot["systemd_unit"])
         db_status = "running" if status == "active" else "stopped" if status == "inactive" else "error"
         await db.update_bot_status(bot["id"], db_status)
 
