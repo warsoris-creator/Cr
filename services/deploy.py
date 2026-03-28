@@ -210,7 +210,8 @@ def scan_existing_bots() -> list[dict]:
 
 def _extract_token(content: str):
     import re
-    match = re.search(r'["\'](\d{8,12}:[A-Za-z0-9_-]{35,})["\']', content)
+    # Ищем токен в кавычках или без (BOT_TOKEN=... или "token")
+    match = re.search(r'["\']?(\d{8,12}:[A-Za-z0-9_-]{35,})["\']?', content)
     return match.group(1) if match else None
 
 
