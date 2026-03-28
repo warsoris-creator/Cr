@@ -120,13 +120,16 @@ async def restart_service_by_name(service_name: str) -> bool:
     return code == 0
 
 
+
+
+
 async def get_service_status_by_name(service_name: str) -> str:
-    _, stdout, _ = await _run("sudo", "systemctl", "is-active", service_name)
+    _, stdout, _ = await _run("systemctl", "is-active", service_name)
     return stdout.strip()
 
 
 async def get_logs_by_name(service_name: str, lines: int = 50) -> str:
-    _, stdout, _ = await _run("sudo", "journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
+    _, stdout, _ = await _run("journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
     return stdout
 
 
