@@ -12,7 +12,7 @@ router = Router()
 async def cmd_scan(message: types.Message):
     msg = await message.answer("🔍 Читаю /home/ ...")
 
-    found = await deploy.scan_existing_bots()
+    found = deploy.scan_existing_bots()
 
     if not found:
         await msg.edit_text("📭 Ботов по паттерну /home/{name}/{name}/{name}.py не найдено.")
@@ -51,7 +51,7 @@ async def cb_import_all(callback: types.CallbackQuery):
     await callback.message.edit_reply_markup(reply_markup=None)
     msg = await callback.message.answer("⏳ Импортирую...")
 
-    found = await deploy.scan_existing_bots()
+    found = deploy.scan_existing_bots()
     existing_bots = await db.get_all_bots()
     existing_users = {b["system_user"] for b in existing_bots}
     new_bots = [b for b in found if b["system_user"] not in existing_users]

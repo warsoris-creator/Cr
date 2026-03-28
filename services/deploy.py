@@ -144,35 +144,60 @@ async def delete_service_by_name(service_name: str, username: str, work_dir: str
 
 
 async def scan_existing_bots() -> list[dict]:
-    """Сканирует /home/ по паттерну /home/{name}/{name}/{name}.py"""
+    """
+    Сканирует /etc/systemd/system/ — читается без sudo.
+    Ищет сервисы {name}.service где User={name} и путь /home/{name}/{name}/{name}.py
+    """
     found = []
+    svc_dir = "/etc/systemd/system"
+
     try:
-        users = os.listdir("/home")
+        entries = os.listdir(svc_dir)
     except Exception:
         return found
 
-    for name in users:
+    for filename in entries:
+        if not filename.endswith(".service"):
+            continue
+        # Пропускаем служебные сервисы менеджера
+        if filename.startswith("tgbot_") or filename == "bot-manager.service":
+            continue
+
+        name = filename[:-len(".service")]
+
         if is_protected(name):
             continue
 
-        py_path = f"/home/{name}/{name}/{name}.py"
-        svc_path = f"/etc/systemd/system/{name}.service"
-
-        py_ok = await file_exists(py_path)
-        svc_ok = await file_exists(svc_path)
-
-        if not py_ok or not svc_ok:
+        svc_path = os.path.join(svc_dir, filename)
+        try:
+            with open(svc_path, "r", errors="ignore") as f:
+                content = f.read()
+        except Exception:
             continue
 
-        content = await read_file(py_path)
-        token = _extract_token(content)
+        # Проверяем что User={name}
+        if f"User={name}" not in content:
+            continue
+
+        # Проверяем что путь соответствует паттерну
+        py_path = f"/home/{name}/{name}/{name}.py"
+        if py_path not in content:
+            continue
+
+        # Читаем токен из py файла (без sudo — попробуем напрямую)
+        token = None
+        try:
+            with open(py_path, "r", errors="ignore") as f:
+                token = _extract_token(f.read())
+        except Exception:
+            pass
 
         found.append({
             "name": name,
             "work_dir": f"/home/{name}/{name}",
             "entrypoint": f"{name}.py",
             "system_user": name,
-            "service_name": f"{name}.service",
+            "service_name": filename,
             "token": token,
         })
 
