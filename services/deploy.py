@@ -146,7 +146,7 @@ async def delete_service_by_name(service_name: str, username: str, work_dir: str
     return True
 
 
-async def scan_existing_bots() -> list[dict]:
+def scan_existing_bots() -> list[dict]:
     """
     Сканирует /etc/systemd/system/ — читается без sudo.
     Ищет сервисы {name}.service где User={name} и путь /home/{name}/{name}/{name}.py
