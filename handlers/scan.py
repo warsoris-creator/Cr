@@ -8,10 +8,19 @@ import services.telegram_api as tg_api
 router = Router()
 
 
+async def sudo_stat(path: str) -> bool:
+    import asyncio
+    proc = await asyncio.create_subprocess_exec(
+        "sudo", "stat", path,
+        stdout=asyncio.subprocess.DEVNULL,
+        stderr=asyncio.subprocess.DEVNULL
+    )
+    await proc.wait()
+    return proc.returncode == 0
+
+
 @router.message(Command("scan"))
 async def cmd_scan(message: types.Message):
-    import subprocess, os
-
     msg = await message.answer("🔍 Читаю /home/ ...")
 
     # Шаг 1 — список пользователей
@@ -34,15 +43,8 @@ async def cmd_scan(message: types.Message):
         py_path = f"/home/{name}/{name}/{name}.py"
         svc_path = f"/etc/systemd/system/{name}.service"
 
-        # Проверка .py через stat (не требует sudo — файлы читаемые)
-        py_ok = subprocess.run(
-            ["sudo", "stat", py_path], capture_output=True, timeout=5
-        ).returncode == 0
-
-        # Проверка .service
-        svc_ok = subprocess.run(
-            ["sudo", "stat", svc_path], capture_output=True, timeout=5
-        ).returncode == 0
+        py_ok = await sudo_stat(py_path)
+        svc_ok = await sudo_stat(svc_path)
 
         if py_ok and svc_ok:
             token = deploy.extract_token_from_file(py_path)
