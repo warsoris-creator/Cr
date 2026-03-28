@@ -1,0 +1,15 @@
+[Unit]
+Description=Telegram Bot Manager
+After=network.target
+
+[Service]
+Type=simple
+User=botmanager
+WorkingDirectory=/opt/bot-manager
+ExecStart=/opt/bot-manager/venv/bin/python3 main.py
+Restart=on-failure
+RestartSec=10
+Environment=PATH=/opt/bot-manager/venv/bin
+
+[Install]
+WantedBy=multi-user.target
