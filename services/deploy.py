@@ -9,14 +9,19 @@ def is_protected(name: str) -> bool:
     return name.lower() in PROTECTED_USERS
 
 
-async def _run(*args) -> tuple[int, str, str]:
+async def _run(*args, timeout: int = 30) -> tuple[int, str, str]:
     """Запускает команду асинхронно, возвращает (returncode, stdout, stderr)."""
     proc = await asyncio.create_subprocess_exec(
         *args,
+        stdin=asyncio.subprocess.DEVNULL,
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE
     )
-    stdout, stderr = await proc.communicate()
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+    except asyncio.TimeoutError:
+        proc.kill()
+        return 1, "", "timeout"
     return proc.returncode, stdout.decode(errors="ignore"), stderr.decode(errors="ignore")
 
 
