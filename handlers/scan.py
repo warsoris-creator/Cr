@@ -34,13 +34,15 @@ async def cmd_scan(message: types.Message):
         py_path = f"/home/{name}/{name}/{name}.py"
         svc_path = f"/etc/systemd/system/{name}.service"
 
-        # Проверка .py
-        r = subprocess.run(["sudo", "test", "-f", py_path], capture_output=True)
-        py_ok = r.returncode == 0
+        # Проверка .py через stat (не требует sudo — файлы читаемые)
+        py_ok = subprocess.run(
+            ["sudo", "stat", py_path], capture_output=True, timeout=5
+        ).returncode == 0
 
         # Проверка .service
-        r2 = subprocess.run(["sudo", "test", "-f", svc_path], capture_output=True)
-        svc_ok = r2.returncode == 0
+        svc_ok = subprocess.run(
+            ["sudo", "stat", svc_path], capture_output=True, timeout=5
+        ).returncode == 0
 
         if py_ok and svc_ok:
             token = deploy.extract_token_from_file(py_path)

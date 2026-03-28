@@ -44,8 +44,8 @@ def scan_existing_bots() -> list[dict]:
         service_name = f"{name}.service"
         service_path = f"/etc/systemd/system/{service_name}"
 
-        py_exists = subprocess.run(["sudo", "test", "-f", py_path], capture_output=True).returncode == 0
-        svc_exists = subprocess.run(["sudo", "test", "-f", service_path], capture_output=True).returncode == 0
+        py_exists = subprocess.run(["sudo", "stat", py_path], capture_output=True, timeout=5).returncode == 0
+        svc_exists = subprocess.run(["sudo", "stat", service_path], capture_output=True, timeout=5).returncode == 0
 
         if not py_exists or not svc_exists:
             continue
