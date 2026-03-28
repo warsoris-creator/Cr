@@ -100,23 +100,23 @@ WantedBy=multi-user.target
     code, _, _ = await _run("sudo", "mv", tmp_path, f"/etc/systemd/system/{service_name}")
     if code != 0:
         return False
-    await _run("sudo", "systemctl", "daemon-reload")
+    await _run("sudo", "/usr/bin/systemctl", "daemon-reload")
     return True
 
 
 async def start_service_by_name(service_name: str) -> bool:
-    await _run("sudo", "systemctl", "enable", service_name)
-    code, _, _ = await _run("sudo", "systemctl", "start", service_name)
+    await _run("sudo", "/usr/bin/systemctl", "enable", service_name)
+    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "start", service_name)
     return code == 0
 
 
 async def stop_service_by_name(service_name: str) -> bool:
-    code, _, _ = await _run("sudo", "systemctl", "stop", service_name)
+    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "stop", service_name)
     return code == 0
 
 
 async def restart_service_by_name(service_name: str) -> bool:
-    code, _, _ = await _run("sudo", "systemctl", "restart", service_name)
+    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "restart", service_name)
     return code == 0
 
 
@@ -124,12 +124,12 @@ async def restart_service_by_name(service_name: str) -> bool:
 
 
 async def get_service_status_by_name(service_name: str) -> str:
-    _, stdout, _ = await _run("systemctl", "is-active", service_name)
+    _, stdout, _ = await _run("/usr/bin/systemctl", "is-active", service_name)
     return stdout.strip()
 
 
 async def get_logs_by_name(service_name: str, lines: int = 50) -> str:
-    _, stdout, _ = await _run("journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
+    _, stdout, _ = await _run("/usr/bin/journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
     return stdout
 
 
@@ -138,9 +138,9 @@ async def delete_service_by_name(service_name: str, username: str, work_dir: str
         raise PermissionError(f"Пользователь {username} защищён от удаления")
     await stop_service_by_name(service_name)
     if source_type != "existing":
-        await _run("sudo", "systemctl", "disable", service_name)
+        await _run("sudo", "/usr/bin/systemctl", "disable", service_name)
         await _run("sudo", "rm", "-f", f"/etc/systemd/system/{service_name}")
-        await _run("sudo", "systemctl", "daemon-reload")
+        await _run("sudo", "/usr/bin/systemctl", "daemon-reload")
         await _run("sudo", "userdel", username)
         await _run("sudo", "rm", "-rf", work_dir)
     return True
