@@ -1,3 +1,5 @@
+import os
+import asyncio
 from aiogram import Router, types
 from aiogram.filters import Command
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
