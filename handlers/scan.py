@@ -10,23 +10,66 @@ router = Router()
 
 @router.message(Command("scan"))
 async def cmd_scan(message: types.Message):
-    await message.answer("🔍 Сканирую /home/ ...")
+    import subprocess, os
 
-    found = deploy.scan_existing_bots()
+    msg = await message.answer("🔍 Читаю /home/ ...")
 
-    if not found:
-        await message.answer("📭 Ботов по паттерну /home/{name}/{name}/{name}.py не найдено.")
+    # Шаг 1 — список пользователей
+    try:
+        users = os.listdir("/home")
+    except Exception as e:
+        await msg.edit_text(f"❌ Не могу прочитать /home/: {e}")
         return
 
-    # Фильтруем уже добавленных (по system_user)
+    await msg.edit_text(f"🔍 Пользователи в /home/: {', '.join(users)}\n\nПроверяю каждого...")
+
+    log = []
+    found = []
+
+    for name in users:
+        if deploy.is_protected(name):
+            log.append(f"🔒 {name} — защищён, пропускаю")
+            continue
+
+        py_path = f"/home/{name}/{name}/{name}.py"
+        svc_path = f"/etc/systemd/system/{name}.service"
+
+        # Проверка .py
+        r = subprocess.run(["sudo", "test", "-f", py_path], capture_output=True)
+        py_ok = r.returncode == 0
+
+        # Проверка .service
+        r2 = subprocess.run(["sudo", "test", "-f", svc_path], capture_output=True)
+        svc_ok = r2.returncode == 0
+
+        if py_ok and svc_ok:
+            token = deploy.extract_token_from_file(py_path)
+            token_status = "🔑 токен есть" if token else "⚠️ токен не найден"
+            log.append(f"✅ {name} — py✓ svc✓ {token_status}")
+            found.append({
+                "name": name,
+                "work_dir": f"/home/{name}/{name}",
+                "entrypoint": f"{name}.py",
+                "system_user": name,
+                "service_name": f"{name}.service",
+                "token": token,
+            })
+        else:
+            log.append(f"❌ {name} — py={'✓' if py_ok else '✗'} svc={'✓' if svc_ok else '✗'}")
+
+    await msg.edit_text("🔍 <b>Диагностика сканирования:</b>\n\n" + "\n".join(log), parse_mode="HTML")
+
+    if not found:
+        await message.answer("📭 Подходящих ботов не найдено.")
+        return
+
     existing_bots = await db.get_all_bots()
     existing_users = {b["system_user"] for b in existing_bots}
 
     new_bots = [b for b in found if b["system_user"] not in existing_users]
     already = [b for b in found if b["system_user"] in existing_users]
 
-    text = f"🔍 <b>Результат сканирования:</b>\n\n"
-
+    text = ""
     if already:
         text += f"✅ Уже в менеджере: {', '.join(b['name'] for b in already)}\n\n"
 
