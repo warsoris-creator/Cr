@@ -3,7 +3,7 @@ import re
 import subprocess
 
 BOTS_BASE_DIR = "/srv/telegram-bots"
-PROTECTED_USERS = {"booK"}
+PROTECTED_USERS = {"book"}
 
 # Паттерн Telegram токена
 TOKEN_RE = re.compile(r'["\'](\d{8,12}:[A-Za-z0-9_-]{35,})["\']')
@@ -16,10 +16,9 @@ def is_protected(name: str) -> bool:
 def extract_token_from_file(filepath: str) -> str | None:
     """Ищет Telegram-токен в .py файле по regex."""
     try:
-        result = subprocess.run(
-            ["sudo", "cat", filepath], capture_output=True, text=True, timeout=10
-        )
-        match = TOKEN_RE.search(result.stdout)
+        with open(filepath, "r", errors="ignore") as f:
+            content = f.read()
+        match = TOKEN_RE.search(content)
         return match.group(1) if match else None
     except Exception:
         return None
@@ -33,10 +32,7 @@ def scan_existing_bots() -> list[dict]:
     """
     found = []
     try:
-        result = subprocess.run(
-            ["sudo", "ls", "/home"], capture_output=True, text=True, timeout=10
-        )
-        users = result.stdout.split()
+        users = os.listdir("/home")
     except Exception:
         return found
 
@@ -48,13 +44,8 @@ def scan_existing_bots() -> list[dict]:
         service_name = f"{name}.service"
         service_path = f"/etc/systemd/system/{service_name}"
 
-        # Проверяем что файл и сервис существуют
-        py_exists = subprocess.run(
-            ["sudo", "test", "-f", py_path], capture_output=True
-        ).returncode == 0
-        svc_exists = subprocess.run(
-            ["sudo", "test", "-f", service_path], capture_output=True
-        ).returncode == 0
+        py_exists = os.path.isfile(py_path)
+        svc_exists = os.path.isfile(service_path)
 
         if not py_exists or not svc_exists:
             continue
