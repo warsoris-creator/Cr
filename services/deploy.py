@@ -26,25 +26,25 @@ async def _run(*args, timeout: int = 30) -> tuple[int, str, str]:
 
 
 async def file_exists(path: str) -> bool:
-    code, _, _ = await _run("sudo", "stat", path)
+    code, _, _ = await _run("/usr/bin/sudo", "stat", path)
     return code == 0
 
 
 async def read_file(path: str) -> str:
-    _, stdout, _ = await _run("sudo", "cat", path)
+    _, stdout, _ = await _run("/usr/bin/sudo", "cat", path)
     return stdout
 
 
 async def create_system_user(username: str) -> bool:
     if is_protected(username):
         return False
-    code, _, stderr = await _run("sudo", "useradd", "-r", "-s", "/bin/false", username)
+    code, _, stderr = await _run("/usr/bin/sudo", "useradd", "-r", "-s", "/bin/false", username)
     return code == 0 or "already exists" in stderr
 
 
 async def clone_github(repo_url: str, work_dir: str, branch: str = "main") -> bool:
     os.makedirs(work_dir, exist_ok=True)
-    code, _, _ = await _run("sudo", "git", "clone", "-b", branch, repo_url, work_dir)
+    code, _, _ = await _run("/usr/bin/sudo", "git", "clone", "-b", branch, repo_url, work_dir)
     return code == 0
 
 
@@ -60,13 +60,13 @@ async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bo
 
 async def setup_venv(work_dir: str) -> bool:
     venv_path = os.path.join(work_dir, "venv")
-    code, _, _ = await _run("sudo", "python3", "-m", "venv", venv_path)
+    code, _, _ = await _run("/usr/bin/sudo", "python3", "-m", "venv", venv_path)
     if code != 0:
         return False
     req_path = os.path.join(work_dir, "requirements.txt")
     if os.path.exists(req_path):
         pip = os.path.join(venv_path, "bin", "pip")
-        code, _, _ = await _run("sudo", pip, "install", "-r", req_path)
+        code, _, _ = await _run("/usr/bin/sudo", pip, "install", "-r", req_path)
         return code == 0
     return True
 
@@ -97,26 +97,26 @@ WantedBy=multi-user.target
     except Exception:
         return False
 
-    code, _, _ = await _run("sudo", "mv", tmp_path, f"/etc/systemd/system/{service_name}")
+    code, _, _ = await _run("/usr/bin/sudo", "mv", tmp_path, f"/etc/systemd/system/{service_name}")
     if code != 0:
         return False
-    await _run("sudo", "/usr/bin/systemctl", "daemon-reload")
+    await _run("/usr/bin/sudo", "/usr/bin/systemctl", "daemon-reload")
     return True
 
 
 async def start_service_by_name(service_name: str) -> bool:
-    await _run("sudo", "/usr/bin/systemctl", "enable", service_name)
-    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "start", service_name)
+    await _run("/usr/bin/sudo", "/usr/bin/systemctl", "enable", service_name)
+    code, _, _ = await _run("/usr/bin/sudo", "/usr/bin/systemctl", "start", service_name)
     return code == 0
 
 
 async def stop_service_by_name(service_name: str) -> bool:
-    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "stop", service_name)
+    code, _, _ = await _run("/usr/bin/sudo", "/usr/bin/systemctl", "stop", service_name)
     return code == 0
 
 
 async def restart_service_by_name(service_name: str) -> bool:
-    code, _, _ = await _run("sudo", "/usr/bin/systemctl", "restart", service_name)
+    code, _, _ = await _run("/usr/bin/sudo", "/usr/bin/systemctl", "restart", service_name)
     return code == 0
 
 
@@ -138,11 +138,11 @@ async def delete_service_by_name(service_name: str, username: str, work_dir: str
         raise PermissionError(f"Пользователь {username} защищён от удаления")
     await stop_service_by_name(service_name)
     if source_type != "existing":
-        await _run("sudo", "/usr/bin/systemctl", "disable", service_name)
-        await _run("sudo", "rm", "-f", f"/etc/systemd/system/{service_name}")
-        await _run("sudo", "/usr/bin/systemctl", "daemon-reload")
-        await _run("sudo", "userdel", username)
-        await _run("sudo", "rm", "-rf", work_dir)
+        await _run("/usr/bin/sudo", "/usr/bin/systemctl", "disable", service_name)
+        await _run("/usr/bin/sudo", "rm", "-f", f"/etc/systemd/system/{service_name}")
+        await _run("/usr/bin/sudo", "/usr/bin/systemctl", "daemon-reload")
+        await _run("/usr/bin/sudo", "userdel", username)
+        await _run("/usr/bin/sudo", "rm", "-rf", work_dir)
     return True
 
 
