@@ -179,9 +179,10 @@ async def scan_existing_bots() -> list[dict]:
         if f"User={name}" not in content:
             continue
 
-        # Проверяем что путь соответствует паттерну
+        # Проверяем что путь соответствует паттерну (с или без ведущего слеша)
         py_path = f"/home/{name}/{name}/{name}.py"
-        if py_path not in content:
+        py_path_rel = f"home/{name}/{name}/{name}.py"
+        if py_path not in content and py_path_rel not in content:
             continue
 
         # Читаем токен из py файла (без sudo — попробуем напрямую)
