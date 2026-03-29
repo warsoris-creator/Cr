@@ -1,8 +1,33 @@
 import os
+import re
 import asyncio
 
 PROTECTED_USERS = {"book"}
 TOKEN_RE = None  # импортируется в scan
+
+# Модули стандартной библиотеки Python — не устанавливаем через pip
+_STDLIB = {
+    'os', 'sys', 'json', 're', 'io', 'abc', 'ast', 'time', 'math', 'uuid',
+    'copy', 'enum', 'html', 'http', 'hmac', 'base64', 'struct', 'queue',
+    'heapq', 'bisect', 'types', 'typing', 'random', 'hashlib', 'logging',
+    'pathlib', 'datetime', 'calendar', 'decimal', 'fractions', 'statistics',
+    'itertools', 'functools', 'operator', 'collections', 'contextlib',
+    'dataclasses', 'string', 'textwrap', 'unicodedata', 'codecs', 'pickle',
+    'shelve', 'sqlite3', 'csv', 'configparser', 'argparse', 'threading',
+    'multiprocessing', 'subprocess', 'signal', 'socket', 'ssl', 'select',
+    'selectors', 'asyncio', 'concurrent', 'email', 'xml', 'urllib', 'zipfile',
+    'tarfile', 'gzip', 'bz2', 'lzma', 'zlib', 'shutil', 'tempfile', 'glob',
+    'fnmatch', 'stat', 'platform', 'gc', 'inspect', 'traceback', 'warnings',
+    'weakref', 'builtins', '__future__', 'importlib', 'pprint', 'numbers',
+    'cmath', 'token', 'tokenize', 'keyword', 'dis', 'unittest', 'doctest',
+    'cmd', 'shlex', 'readline', 'atexit', 'site', 'sysconfig', 'ctypes',
+    'array', 'binascii', 'mmap', 'getpass', 'getopt', 'gettext', 'locale',
+    'secrets', 'pdb', 'timeit', 'profile', 'pstats', 'optparse', 'difflib',
+    'filecmp', 'fileinput', 'linecache', 'zipimport', 'pkgutil', 'posixpath',
+    'ntpath', 'genericpath', 'posix', 'pwd', 'grp', 'fcntl', 'resource',
+    'syslog', 'tty', 'pty', 'pipes', 'msvcrt', 'winreg', 'encodings',
+    'pkg_resources',  # часть setuptools, не нужно устанавливать отдельно
+}
 
 
 def is_protected(name: str) -> bool:
@@ -65,18 +90,68 @@ async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bo
         return False, str(e)
 
 
+async def _extract_imports_from_dir(work_dir: str) -> list[str]:
+    """Сканирует .py файлы в work_dir и возвращает список сторонних пакетов."""
+    _, stdout, _ = await _run(
+        "/usr/bin/sudo", "/usr/bin/find", work_dir,
+        "-name", "*.py", "-not", "-path", f"{work_dir}/venv/*"
+    )
+    py_files = [f.strip() for f in stdout.splitlines() if f.strip()]
+
+    packages = set()
+    for py_file in py_files:
+        content = await read_file(py_file)
+        for match in re.finditer(r'^(?:import|from)\s+([a-zA-Z_][a-zA-Z0-9_]*)', content, re.MULTILINE):
+            top = match.group(1)
+            if top not in _STDLIB:
+                packages.add(top)
+    return list(packages)
+
+
+async def get_git_remote_url(work_dir: str, username: str) -> str:
+    """Возвращает URL git remote origin, или пустую строку."""
+    _, stdout, _ = await _run(
+        "/usr/bin/sudo", "-u", username, "/usr/bin/git",
+        "-C", work_dir, "remote", "get-url", "origin"
+    )
+    return stdout.strip()
+
+
 async def setup_venv(work_dir: str, username: str) -> bool:
     venv_path = os.path.join(work_dir, "venv")
     code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, "/usr/bin/python3", "-m", "venv", venv_path, timeout=60)
     if code != 0:
         return False
+    pip = os.path.join(venv_path, "bin", "pip")
     req_path = os.path.join(work_dir, "requirements.txt")
-    req_exists = await file_exists(req_path)
-    if req_exists:
-        pip = os.path.join(venv_path, "bin", "pip")
+    if await file_exists(req_path):
         code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", "-r", req_path, timeout=300)
         return code == 0
+    # requirements.txt нет — автоопределяем импорты
+    packages = await _extract_imports_from_dir(work_dir)
+    if packages:
+        await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", *packages, timeout=300)
     return True
+
+
+async def pull_and_update(work_dir: str, username: str, branch: str = "main") -> tuple[bool, str]:
+    """git pull + переустановка зависимостей. Возвращает (success, error)."""
+    code, stdout, stderr = await _run(
+        "/usr/bin/sudo", "-u", username, "/usr/bin/git",
+        "-C", work_dir, "pull", "origin", branch, timeout=60
+    )
+    if code != 0:
+        return False, stderr or stdout
+    venv_path = os.path.join(work_dir, "venv")
+    pip = os.path.join(venv_path, "bin", "pip")
+    req_path = os.path.join(work_dir, "requirements.txt")
+    if await file_exists(req_path):
+        await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", "-r", req_path, timeout=300)
+    else:
+        packages = await _extract_imports_from_dir(work_dir)
+        if packages:
+            await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", *packages, timeout=300)
+    return True, ""
 
 
 async def create_systemd_service(bot_id: str, username: str, work_dir: str, entrypoint: str = "bot.py") -> bool:

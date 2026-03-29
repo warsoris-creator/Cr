@@ -85,6 +85,14 @@ async def add_existing_bot(name, telegram_bot_id, telegram_bot_username, token,
     return bot_id
 
 
+async def update_source_value(bot_id: str, source_value: str):
+    now = datetime.now().isoformat()
+    async with aiosqlite.connect(DB_PATH) as db:
+        await db.execute("UPDATE bots SET source_value = ?, updated_at = ? WHERE id = ?",
+                         (source_value, now, bot_id))
+        await db.commit()
+
+
 async def delete_bot(bot_id):
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute("DELETE FROM bots WHERE id = ?", (bot_id,))
