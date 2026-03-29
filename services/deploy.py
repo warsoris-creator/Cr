@@ -38,21 +38,26 @@ async def read_file(path: str) -> str:
 async def create_system_user(username: str) -> bool:
     if is_protected(username):
         return False
-    code, _, stderr = await _run("/usr/bin/sudo", "useradd", "-r", "-s", "/bin/false", username)
+    code, _, stderr = await _run("/usr/bin/sudo", "useradd", "-r", "-m", "-s", "/bin/bash", username)
     return code == 0 or "already exists" in stderr
 
 
-async def clone_github(repo_url: str, work_dir: str, branch: str = "main") -> bool:
-    os.makedirs(work_dir, exist_ok=True)
-    code, _, _ = await _run("/usr/bin/sudo", "git", "clone", "-b", branch, repo_url, work_dir)
+async def clone_github(repo_url: str, work_dir: str, branch: str = "main", username: str = "root") -> bool:
+    await _run("/usr/bin/sudo", "mkdir", "-p", work_dir)
+    await _run("/usr/bin/sudo", "chown", f"{username}:{username}", work_dir)
+    code, _, _ = await _run("/usr/bin/sudo", "-u", username, "/usr/bin/git", "clone", "-b", branch, repo_url, work_dir)
     return code == 0
 
 
-async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bot.py") -> bool:
+async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bot.py", username: str = "root") -> bool:
     try:
-        os.makedirs(work_dir, exist_ok=True)
-        with open(os.path.join(work_dir, filename), "wb") as f:
+        await _run("/usr/bin/sudo", "mkdir", "-p", work_dir)
+        await _run("/usr/bin/sudo", "chown", f"{username}:{username}", work_dir)
+        tmp = f"/tmp/{filename}"
+        with open(tmp, "wb") as f:
             f.write(file_bytes)
+        await _run("/usr/bin/sudo", "mv", tmp, os.path.join(work_dir, filename))
+        await _run("/usr/bin/sudo", "chown", f"{username}:{username}", os.path.join(work_dir, filename))
         return True
     except Exception:
         return False
@@ -60,13 +65,14 @@ async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bo
 
 async def setup_venv(work_dir: str, username: str) -> bool:
     venv_path = os.path.join(work_dir, "venv")
-    code, _, _ = await _run("/usr/bin/sudo", "-u", username, "/usr/bin/python3", "-m", "venv", venv_path)
+    code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, "/usr/bin/python3", "-m", "venv", venv_path, timeout=60)
     if code != 0:
         return False
     req_path = os.path.join(work_dir, "requirements.txt")
-    if os.path.exists(req_path):
+    req_exists = await file_exists(req_path)
+    if req_exists:
         pip = os.path.join(venv_path, "bin", "pip")
-        code, _, _ = await _run("/usr/bin/sudo", "-u", username, pip, "install", "-r", req_path)
+        code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", "-r", req_path, timeout=300)
         return code == 0
     return True
 
@@ -129,7 +135,7 @@ async def get_service_status_by_name(service_name: str) -> str:
 
 
 async def get_logs_by_name(service_name: str, lines: int = 50) -> str:
-    _, stdout, _ = await _run("/usr/bin/journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
+    _, stdout, _ = await _run("/usr/bin/sudo", "/usr/bin/journalctl", "-u", service_name, "-n", str(lines), "--no-pager")
     return stdout
 
 

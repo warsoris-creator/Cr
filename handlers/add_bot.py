@@ -125,10 +125,10 @@ async def deploy_and_save_bot(message: types.Message, state: FSMContext, data: d
 
     if source_type == "github":
         await msg.edit_text("🌐 Клонирую репозиторий...")
-        success = await deploy_service.clone_github(data["github_url"], work_dir)
+        success = await deploy_service.clone_github(data["github_url"], work_dir, username=username)
     else:
         await msg.edit_text("📁 Сохраняю файл...")
-        success = await deploy_service.save_python_file(data["file_bytes"], work_dir, data.get("filename", "bot.py"))
+        success = await deploy_service.save_python_file(data["file_bytes"], work_dir, data.get("filename", "bot.py"), username=username)
 
     if not success:
         await db.update_bot_status(bot_id, "error", last_error="Failed to get code")
