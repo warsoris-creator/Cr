@@ -68,23 +68,30 @@ async def create_system_user(username: str) -> bool:
 
 
 async def clone_github(repo_url: str, work_dir: str, branch: str = "main", username: str = "root") -> tuple[bool, str]:
-    await _run("/usr/bin/sudo", "mkdir", "-p", work_dir)
-    await _run("/usr/bin/sudo", "chown", f"{username}:{username}", work_dir)
-    code, stdout, stderr = await _run("/usr/bin/sudo", "-u", username, "/usr/bin/git", "clone", "-b", branch, repo_url, work_dir)
-    return code == 0, stderr or stdout
+    parent = os.path.dirname(work_dir)
+    await _run("/usr/bin/sudo", "mkdir", "-p", parent)
+    await _run("/usr/bin/sudo", "rm", "-rf", work_dir)  # чистим остатки прошлых попыток
+    code, stdout, stderr = await _run(
+        "/usr/bin/sudo", "/usr/bin/git", "clone", "-b", branch, repo_url, work_dir, timeout=60
+    )
+    if code != 0:
+        return False, stderr or stdout
+    await _run("/usr/bin/sudo", "chown", "-R", f"{username}:{username}", work_dir)
+    return True, ""
 
 
 async def save_python_file(file_bytes: bytes, work_dir: str, filename: str = "bot.py", username: str = "root") -> tuple[bool, str]:
     try:
+        parent = os.path.dirname(work_dir)
+        await _run("/usr/bin/sudo", "mkdir", "-p", parent)
         await _run("/usr/bin/sudo", "mkdir", "-p", work_dir)
-        await _run("/usr/bin/sudo", "chown", f"{username}:{username}", work_dir)
         tmp = f"/tmp/{filename}"
         with open(tmp, "wb") as f:
             f.write(file_bytes)
         code, stdout, stderr = await _run("/usr/bin/sudo", "mv", tmp, os.path.join(work_dir, filename))
         if code != 0:
             return False, stderr or stdout
-        await _run("/usr/bin/sudo", "chown", f"{username}:{username}", os.path.join(work_dir, filename))
+        await _run("/usr/bin/sudo", "chown", "-R", f"{username}:{username}", work_dir)
         return True, ""
     except Exception as e:
         return False, str(e)
