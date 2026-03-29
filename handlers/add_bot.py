@@ -1,3 +1,4 @@
+import html
 from aiogram import Router, types, F
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -132,7 +133,7 @@ async def deploy_and_save_bot(message: types.Message, state: FSMContext, data: d
 
     if not success:
         await db.update_bot_status(bot_id, "error", last_error=err[:200] if err else "Failed to get code")
-        await msg.edit_text(f"❌ Ошибка при получении кода:\n<code>{err[:500] if err else 'unknown'}</code>", parse_mode="HTML")
+        await msg.edit_text(f"❌ Ошибка при получении кода:\n<code>{html.escape(err[:500] if err else 'unknown')}</code>", parse_mode="HTML")
         await state.clear()
         return
 
@@ -141,7 +142,7 @@ async def deploy_and_save_bot(message: types.Message, state: FSMContext, data: d
 
     await msg.edit_text("⚙️ Создаю systemd сервис...")
     entrypoint = data.get("filename", "bot.py") if source_type == "file" else "bot.py"
-    await deploy_service.create_systemd_service(bot_id, username, work_dir, entrypoint)
+    await deploy_service.create_systemd_service(bot_id, username, work_dir, entrypoint, token=token)
 
     await msg.edit_text("▶️ Запускаю бота...")
     await deploy_service.start_service(bot_id)

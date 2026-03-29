@@ -162,11 +162,12 @@ async def pull_and_update(work_dir: str, username: str, branch: str = "main") ->
     return True, ""
 
 
-async def create_systemd_service(bot_id: str, username: str, work_dir: str, entrypoint: str = "bot.py") -> bool:
+async def create_systemd_service(bot_id: str, username: str, work_dir: str, entrypoint: str = "bot.py", token: str = "") -> bool:
     venv_python = os.path.join(work_dir, "venv", "bin", "python3")
     script_path = os.path.join(work_dir, entrypoint)
     service_name = f"tgbot_{bot_id}.service"
     tmp_path = f"/tmp/{service_name}"
+    env_line = f"\nEnvironment=BOT_TOKEN={token}" if token else ""
     service_content = f"""[Unit]
 Description=Telegram Bot {bot_id}
 After=network.target
@@ -175,7 +176,7 @@ After=network.target
 Type=simple
 User={username}
 WorkingDirectory={work_dir}
-ExecStart={venv_python} {script_path}
+ExecStart={venv_python} {script_path}{env_line}
 Restart=on-failure
 RestartSec=10
 

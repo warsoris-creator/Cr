@@ -1,3 +1,4 @@
+import html
 from aiogram import Router, types
 import db
 import services.deploy as deploy
@@ -113,7 +114,7 @@ async def cb_update(callback: types.CallbackQuery):
     branch = bot["branch"] or "main"
     success, err = await deploy.pull_and_update(bot["work_dir"], bot["system_user"], branch)
     if not success:
-        await msg.edit_text(f"❌ Ошибка git pull:\n<code>{err[:500]}</code>", parse_mode="HTML")
+        await msg.edit_text(f"❌ Ошибка git pull:\n<code>{html.escape(err[:500])}</code>", parse_mode="HTML")
         return
 
     await deploy.restart_service_by_name(bot["systemd_unit"])
