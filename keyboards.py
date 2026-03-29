@@ -23,6 +23,18 @@ def bot_card_keyboard(bot_id):
         [InlineKeyboardButton(text="⬅️ Назад", callback_data="back_to_status")]
     ])
 
+def delete_confirm1_keyboard(bot_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="⚠️ Да, хочу удалить", callback_data=f"delconf1_{bot_id}"),
+         InlineKeyboardButton(text="❌ Отмена", callback_data=f"bot_{bot_id}")]
+    ])
+
+def delete_confirm2_keyboard(bot_id):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🗑 УДАЛИТЬ НАВСЕГДА", callback_data=f"delconf2_{bot_id}"),
+         InlineKeyboardButton(text="❌ Отмена", callback_data=f"bot_{bot_id}")]
+    ])
+
 def cancel_keyboard():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Отмена", callback_data="cancel_add")]
