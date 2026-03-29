@@ -126,26 +126,27 @@ async def get_git_remote_url(work_dir: str, username: str) -> str:
 
 async def setup_venv(work_dir: str, username: str) -> bool:
     venv_path = os.path.join(work_dir, "venv")
-    code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, "/usr/bin/python3", "-m", "venv", venv_path, timeout=60)
+    # Создаём venv от root, потом chown
+    code, _, _ = await _run("/usr/bin/sudo", "/usr/bin/python3", "-m", "venv", venv_path, timeout=60)
     if code != 0:
         return False
+    await _run("/usr/bin/sudo", "chown", "-R", f"{username}:{username}", venv_path)
     pip = os.path.join(venv_path, "bin", "pip")
     req_path = os.path.join(work_dir, "requirements.txt")
     if await file_exists(req_path):
-        code, _, _ = await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", "-r", req_path, timeout=300)
+        code, _, _ = await _run("/usr/bin/sudo", pip, "install", "-r", req_path, timeout=300)
         return code == 0
-    # requirements.txt нет — автоопределяем импорты
+    # requirements.txt нет — автоопределяем импорты из кода
     packages = await _extract_imports_from_dir(work_dir)
     if packages:
-        await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", *packages, timeout=300)
+        await _run("/usr/bin/sudo", pip, "install", *packages, timeout=300)
     return True
 
 
 async def pull_and_update(work_dir: str, username: str, branch: str = "main") -> tuple[bool, str]:
     """git pull + переустановка зависимостей. Возвращает (success, error)."""
     code, stdout, stderr = await _run(
-        "/usr/bin/sudo", "-u", username, "/usr/bin/git",
-        "-C", work_dir, "pull", "origin", branch, timeout=60
+        "/usr/bin/sudo", "/usr/bin/git", "-C", work_dir, "pull", "origin", branch, timeout=60
     )
     if code != 0:
         return False, stderr or stdout
@@ -153,11 +154,11 @@ async def pull_and_update(work_dir: str, username: str, branch: str = "main") ->
     pip = os.path.join(venv_path, "bin", "pip")
     req_path = os.path.join(work_dir, "requirements.txt")
     if await file_exists(req_path):
-        await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", "-r", req_path, timeout=300)
+        await _run("/usr/bin/sudo", pip, "install", "-r", req_path, timeout=300)
     else:
         packages = await _extract_imports_from_dir(work_dir)
         if packages:
-            await _run("/usr/bin/sudo", "-H", "-u", username, pip, "install", *packages, timeout=300)
+            await _run("/usr/bin/sudo", pip, "install", *packages, timeout=300)
     return True, ""
 
 
